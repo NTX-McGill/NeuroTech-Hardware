@@ -13,16 +13,16 @@
 
 // Vibration motors
 // L or R indicates hand; 1 is thumb, 5 is pinky
-#define L1_pin A0
-#define L2_pin A1
-#define L3_pin A2
-#define L4_pin 3
-#define L5_pin 2
-#define R1_pin 4
-#define R2_pin 6
-#define R3_pin 8
+#define L1_pin A1
+#define L2_pin A2
+#define L3_pin A3
+#define L4_pin A4
+#define L5_pin A5
+#define R1_pin 3
+#define R2_pin 4
+#define R3_pin 5
 #define R4_pin 9
-#define R5_pin 1
+#define R5_pin 8
  
 // Accelerometer (sw SPI)
 #define lis_CLK 13
@@ -32,18 +32,18 @@
 
 // Configuration
 #define DELAY_FLICKER 80    // time (ms) to vibrate for
-#define DELAY_READ 500       // time (ms) between readings
+#define DELAY_READ 50       // time (ms) between readings
 
 // [finger, multiplier * 10]
 int fingers[][2] = {{L5_pin, 13}, 
                     {L4_pin, 15}, 
-                    {L3_pin, 9}, 
+                    {L3_pin, 10}, 
                     {L2_pin, 10}, 
                     {L1_pin, 14},
                     {R5_pin, 13}, 
                     {R4_pin, 15}, 
-                    {R3_pin, 9}, 
-                    {R2_pin, 10}, 
+                    {R3_pin, 15}, 
+                    {R2_pin, 15}, 
                     {R1_pin, 14}};
 
 Adafruit_LIS3DH lis = Adafruit_LIS3DH(lis_CS, lis_MOSI, lis_MISO, lis_CLK);
@@ -87,7 +87,6 @@ void setup() {
   digitalWrite(R4_pin, LOW);
   digitalWrite(R5_pin, LOW);
 
-
   Serial.println("<Arduino is ready>");  // read_accel is waiting for this signal
 }
 
@@ -100,14 +99,6 @@ void loop() {
   delay(DELAY_READ);
 }
 
-/* Cycle through each finger in order */
-void cycle(int delay_ms) {
-  for (int i=0; i < 10; i++) {
-    flicker(fingers[i]);
-    delay(delay_ms);
-  }
-}
-
 /* Send accelerometer data via USB Serial
  * Designed to work with save_console.py
  * <x:_,y:_,z:_>\n
@@ -116,8 +107,9 @@ void send_accel() {
   sensors_event_t event;
   lis.getEvent(&event);
 
+  Serial.print("<timestamp:"); Serial.print(millis()); Serial.print(",");
   // in m/s^2
-  Serial.print("<x:"); Serial.print(event.acceleration.x); Serial.print(",");
+  Serial.print("x:"); Serial.print(event.acceleration.x); Serial.print(",");
   Serial.print("y:"); Serial.print(event.acceleration.y); Serial.print(",");
   Serial.print("z:"); Serial.print(event.acceleration.z); Serial.println(">");
 
@@ -130,6 +122,7 @@ void send_accel() {
 int *read_finger() {
   if (Serial.available() > 0) {
     int finger = Serial.read() - 48; // convert to int from ASCII
+    Serial.print("<read "); Serial.print(finger); Serial.println(">");
     return fingers[finger];
   }
   return NULL;

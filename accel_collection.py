@@ -11,7 +11,7 @@ import serial
 import time
 import datetime
 
-port = 'COM3'
+port = 'COM4'
 baudrate = 9600
 
 start = b'<'
@@ -19,15 +19,12 @@ end = b'>'
 
 
 # Read incoming serial communication from Arduino
-# Append timestamp here
 # Reads <msg>
 def read_from_arduino(s):
 	while s.read() != start:
 		pass
 
-	msg = 'timestamp:' + \
-		   time.strftime('%H:%M:%S', time.localtime()) + \
-		  ',' + s.read_until(end)[:-1].decode('utf-8')
+	msg = s.read_until(end)[:-1].decode('utf-8')
 
 	
 	return msg
@@ -94,9 +91,10 @@ def parse_data(raw_data):
 
 # Take dictionary of timestamp, x, y, z
 # and return record timestamp,x,y,z
-def to_csv(parsed, event):
-	record = str(event) + ',' + \
-		 parsed['timestamp'] + ',' + \
+def to_csv(parsed, event, event_type, event_start):
+	record = event_type + ',' + \
+		 str(event) + ',' + \
+		 str(float(parsed['timestamp']) - event_start) + ',' + \
 		 parsed['x'] + ',' + \
 		 parsed['y'] + ',' + \
 		 parsed['z'] + '\n'
@@ -105,7 +103,7 @@ def to_csv(parsed, event):
 
 def main():
 	event_num = 0
-	userid = input('Enter your id: ')
+	event_type = input('Enter event_type (swipe, etc.): ')
 
 	ser = serial.Serial()
 	ser.baudrate = baudrate
@@ -114,13 +112,13 @@ def main():
 	wait_for_serial(ser)
 
 	# Enter the acceleration data into a csv
-	with open('logs/' + userid + '_' + \
-			  time.strftime('%H_%M', time.localtime()) + '.csv',
-			  'w+') as log:
+	with open('logs/log_' + \
+		  time.strftime('%H_%M', time.localtime()) + '.csv',
+		  'w+') as log:
 		wait_for_arduino(ser)
 
 		try:
-			log.write('event,timestamp,x,y,z\n')  # header
+			log.write('type,event,timestamp,x,y,z\n')  # header
 			while True:
 				# Countdown
 				for i in range(3):
@@ -129,12 +127,20 @@ def main():
 				
 				start_time = datetime.datetime.now()
 				cur_time = start_time
+				flag = False
 
 				print('recording')
 				event_num += 1
 				while (cur_time - start_time).seconds < 1:
 					raw_data = read_from_arduino(ser)
-					record = to_csv(parse_data(raw_data), event_num)
+					parsed = parse_data(raw_data)
+					if not flag:
+						event_start = float(parsed['timestamp'])
+						flag = True
+					record = to_csv(parsed, 
+							event_num,
+							event_type,
+							event_start)					
 					log.write(record)
 					cur_time = datetime.datetime.now()
 				print('done')
