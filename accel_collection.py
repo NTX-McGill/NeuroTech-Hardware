@@ -2,11 +2,14 @@
 Get serial data from COM3 and save to csv logs.
 For accelerometer data with accel_read.ino.
 
+Prompt the user for data collection every three seconds.
+
 Unplug the Arduino to stop the program and save the data.
 '''
 
 import serial
 import time
+import datetime
 
 port = 'COM3'
 baudrate = 9600
@@ -26,8 +29,6 @@ def read_from_arduino(s):
 		   time.strftime('%H:%M:%S', time.localtime()) + \
 		  ',' + s.read_until(end)[:-1].decode('utf-8')
 
-	
-	print(msg)
 	
 	return msg
 
@@ -91,11 +92,11 @@ def parse_data(raw_data):
 		vals[key] = val
 	return vals
 
-
 # Take dictionary of timestamp, x, y, z
 # and return record timestamp,x,y,z
-def to_csv(parsed):
-	record = parsed['timestamp'] + ',' + \
+def to_csv(parsed, event):
+	record = str(event) + ',' + \
+		 parsed['timestamp'] + ',' + \
 		 parsed['x'] + ',' + \
 		 parsed['y'] + ',' + \
 		 parsed['z'] + '\n'
@@ -103,6 +104,7 @@ def to_csv(parsed):
 
 
 def main():
+	event_num = 0
 	userid = input('Enter your id: ')
 
 	ser = serial.Serial()
@@ -118,13 +120,27 @@ def main():
 		wait_for_arduino(ser)
 
 		try:
-			log.write('timestamp,x,y,z\n')  # header
-			while True:	
-				raw_data = read_from_arduino(ser)
-				record = to_csv(parse_data(raw_data))
-				log.write(record)
+			log.write('event,timestamp,x,y,z\n')  # header
+			while True:
+				# Countdown
+				for i in range(3):
+					print(3-i)
+					time.sleep(0.5)
+				
+				start_time = datetime.datetime.now()
+				cur_time = start_time
+
+				print('recording')
+				event_num += 1
+				while (cur_time - start_time).seconds < 1:
+					raw_data = read_from_arduino(ser)
+					record = to_csv(parse_data(raw_data), event_num)
+					log.write(record)
+					cur_time = datetime.datetime.now()
+				print('done')
 
 		except:
+			print('serial closed')
 			ser.close()
 
 if __name__ == '__main__':

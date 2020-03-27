@@ -8,12 +8,11 @@ Unplug the Arduino to stop the program and save the data.
 import serial
 import time
 
-port = 'COM3'
+port = 'COM4'
 baudrate = 9600
 
 start = b'<'
 end = b'>'
-
 
 # Read incoming serial communication from Arduino
 # Append timestamp here
@@ -66,65 +65,25 @@ def wait_for_arduino(s, printReady=True):
 	print('Connection established')
 
 
-# Get the acceleration by axis from the raw accelerometer data
-def parse_data(raw_data):
-	vals = {}
-
-	for axis in range(4):  # timestamp, x, y, z
-		# get the key
-		key = ''
-		for i in range(len(raw_data)-1):
-			if raw_data[i] != ':':
-				key += raw_data[i]
-			else:
-				raw_data = raw_data[i+1:]
-				break
-
-		# get the value
-		val = ''
-		for i in range(len(raw_data)-1):
-			if raw_data[i] != ',':
-				val += raw_data[i]
-			else:
-				raw_data = raw_data[i+1:]
-				break
-		vals[key] = val
-	return vals
-
-
-# Take dictionary of timestamp, x, y, z
-# and return record timestamp,x,y,z
-def to_csv(parsed):
-	record = parsed['timestamp'] + ',' + \
-		 parsed['x'] + ',' + \
-		 parsed['y'] + ',' + \
-		 parsed['z'] + '\n'
-	return record
-
+def write_to_serial(s, data):
+	s.write(data.encode('utf-8'))
 
 def main():
-	userid = input('Enter your id: ')
-
 	ser = serial.Serial()
 	ser.baudrate = baudrate
 	ser.port = port
 
 	wait_for_serial(ser)
+	wait_for_arduino(ser)
 
-	# Enter the acceleration data into a csv
-	with open('logs/' + userid + '_' + \
-			  time.strftime('%H_%M', time.localtime()) + '.csv',
-			  'w+') as log:
-		wait_for_arduino(ser)
-
-		try:
-			log.write('timestamp,x,y,z\n')  # header
-			while True:	
-				raw_data = read_from_arduino(ser)
-				record = to_csv(parse_data(raw_data))
-				log.write(record)
-
-		except:
+	try:
+		while True:	
+			for f in range(3):
+				read_from_arduino(ser)
+				write_to_serial(ser, str(f))
+				time.sleep(1)
+	
+	except:
 			ser.close()
 
 if __name__ == '__main__':
