@@ -78,7 +78,7 @@ def main():
 
 	try:
 		while True:	
-			for f in range(3):
+			for f in range(5, 10):
 				read_from_arduino(ser)
 				write_to_serial(ser, str(f))
 				time.sleep(1)
