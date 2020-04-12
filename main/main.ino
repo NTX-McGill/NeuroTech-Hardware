@@ -35,16 +35,16 @@
 #define DELAY_READ 50       // time (ms) between readings
 
 // [finger, multiplier * 10]
-int fingers[][2] = {{L5_pin, 13}, 
-                    {L4_pin, 15}, 
-                    {L3_pin, 10}, 
-                    {L2_pin, 10}, 
-                    {L1_pin, 14},
-                    {R5_pin, 13}, 
-                    {R4_pin, 15}, 
-                    {R3_pin, 15}, 
-                    {R2_pin, 15}, 
-                    {R1_pin, 14}};
+int fingers[][3] = {{L5_pin, 13, 0}, 
+                    {L4_pin, 15, 1}, 
+                    {L3_pin, 10, 2}, 
+                    {L2_pin, 10, 3}, 
+                    {L1_pin, 14, 4},
+                    {R5_pin, 13, 5}, 
+                    {R4_pin, 15, 6}, 
+                    {R3_pin, 15, 7}, 
+                    {R2_pin, 15, 8}, 
+                    {R1_pin, 14, 9}};
 
 Adafruit_LIS3DH lis = Adafruit_LIS3DH(lis_CS, lis_MOSI, lis_MISO, lis_CLK);
 
@@ -57,10 +57,10 @@ void setup() {
   while (!Serial) delay(10);  // wait for Serial to start
   
   if (!lis.begin(0x18)) {
-    Serial.println("Couldn't start lis!");
+    Serial.println("Couldn't start accelerometer!");
     while (1) yield();
   }
-  Serial.println("lis found!");
+  Serial.println("accelerometer found!");
 
   lis.setRange(LIS3DH_RANGE_4_G);  // 2, 4, 8 or 16
   
@@ -87,17 +87,19 @@ void setup() {
   digitalWrite(R4_pin, LOW);
   digitalWrite(R5_pin, LOW);
 
-  Serial.println("<Arduino is ready>");  // read_accel is waiting for this signal
+  Serial.println("<Arduino is ready>");  // main.py is waiting for this signal
 }
 
+
 void loop() {
-  send_accel();
+  send_accel();  // send accelerometer data
   int* target_pin = read_finger();  // pin, multiplier for motor to vibrate
   if (target_pin != NULL) {
     flicker(target_pin);
   }
   delay(DELAY_READ);
 }
+
 
 /* Send accelerometer data via USB Serial
  * Designed to work with save_console.py
@@ -116,17 +118,23 @@ void send_accel() {
   Serial.println();
 }
 
+
 /* Read finger to vibrate from USB Serial (from a python script)
  * Return [motor_pin, multiplier] for that finger
  */
 int *read_finger() {
   if (Serial.available() > 0) {
     int finger = Serial.read() - 48; // convert to int from ASCII
-    Serial.print("<read "); Serial.print(finger); Serial.println(">");
-    return fingers[finger];
+    Serial.print("<read "); Serial.print(finger); Serial.println(">");  // debugging
+    
+    for (int i=0; i < 10; i++) {
+      if (fingers[i][2] == finger):
+        return fingers[i];
+    }
   }
   return NULL;
 }
+
 
 // Vibrate motor at given pin for DELAY_READ * (multiplier/10)
 void flicker(int f[]) {
@@ -134,6 +142,7 @@ void flicker(int f[]) {
   delay(DELAY_FLICKER * (float(f[1]) / 10));
   digitalWrite(f[0], LOW);  // vibration off  
 }
+
 
 // Echo received comms
 void test_connection() {

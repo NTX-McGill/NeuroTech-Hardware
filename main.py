@@ -2,46 +2,66 @@
 Serial communication to send model predictions (which finger moved) to the
 development board to trigger haptic feedback. Also reads raw accelerometer data
 from the board and sends to the gesture classification model.
+
+Client for SocketIO server.
 '''
 from gesture_utils import parse_data
 import serial_utils
-
+import socketio
 
 # CONFIGURATION
 PORT = 'COM3'  # serial port
+SERVER = 'https://localhost:4002'
 
 
 def main():
 	serial = serial_utils.open_serial(PORT)
 	serial_utils.wait_for_board(serial)  # wait for 'Ready' message
 
-	while True:
-		prediction = get_new_prediction()
-		if prediction is not None:
+	# Setup socketio
+	sio = socketio.Client()
+
+	@sio.event
+	def connect():
+		print('server connection established')
+
+	@sio.on('Finger')
+	def get_prediction(prediction):
+		print('received ', prediction)
+
+		# Try writing the prediction to the board
+		try:
 			serial_utils.write(serial, prediction)
-		send_to_model(parse_data(serial_utils.read(serial)))
+		except:
+			serial.close()
+			print('serial connection closed')
+
+	
+	@sio.on('Update')
+	def send_accel_to_model():
+		'''
+		Send accelerometer data to the model through SocketIO.
+		Send when pinged.
+
+		params:
+		  parsed - int list, [timestamp,x_accel,y_accel,z_accel]
+	
+		'''
+		# Try reading the accelerometer data from Serial
+		try:
+			sio.emit('accel_event', {'accel_data': parse_data(serial_utils.read(serial))}
+		except:
+			serial.close()
+			print('serial connection closed')
+
+	
+	@sio.event
+	def disconnect():
+		print('disconnected from server')
 
 
-def send_to_model(parsed):
-	'''
-	@TODO
-	Send accelerometer data to the model through SocketIO.
-
-	params:
-	  parsed - int list, [timestamp,x_accel,y_accel,z_accel]
-
-	'''
-	pass
-
-
-def get_new_prediction():
-	'''
-	@TODO
-	Fetch new model prediction from SocketIO.
-
-	returns: int, prediction (or None if no prediction)
-	'''
-	pass
+	sio.connect(SERVER)
+	sio.wait()
 
 
 if __name__ == '__main__':
